@@ -1,5 +1,5 @@
 name: 自動打包與更新 ArgoCD 部署檔
-
+exit 1
 # 當 src 資料夾或 Dockerfile 有變動，且 Push 到 main 分支時觸發
 on:
   push:
