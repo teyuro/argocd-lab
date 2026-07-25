@@ -1,0 +1,51 @@
+name: 自動打包與更新 ArgoCD 部署檔
+
+# 當 src 資料夾或 Dockerfile 有變動，且 Push 到 main 分支時觸發
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'src/**'
+      - 'Dockerfile'
+
+jobs:
+  build-and-update:
+    runs-on: ubuntu-latest
+    
+    # 開放權限讓 GitHub Actions 可以推播 Image 並修改原始碼
+    permissions:
+      contents: write
+      packages: write
+
+    steps:
+      - name: 📥 下載專案程式碼
+        uses: actions/checkout@v4
+
+      - name: 🔑 登入 GitHub Container Registry (GHCR)
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 📦 建置並推送 Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          # 使用 git 的 commit hash (sha) 來當作 Image 的版本號
+          tags: ghcr.io/${{ github.repository_owner }}/argocd-lab-web:${{ github.sha }}
+
+      - name: 📝 更新 Kubernetes YAML 檔裡面的 Image 標籤
+        run: |
+          # 使用 sed 指令，把 deployment.yaml 裡面的 image 替換成剛剛打包出來的新版本
+          sed -i "s|image: .*|image: ghcr.io/${{ github.repository_owner }}/argocd-lab-web:${{ github.sha }}|g" guestbook/deployment.yaml
+
+      - name: 🚀 Commit 並 Push 更新後的 YAML 檔回 GitHub
+        run: |
+          git config --global user.name 'GitHub Actions'
+          git config --global user.email 'actions@github.com'
+          git add guestbook/deployment.yaml
+          git commit -m "Auto-update image tag to ${{ github.sha }}" || echo "No changes to commit"
+          git push
