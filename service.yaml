@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: guestbook-ui-svc
+  # 也可以放在對應的 namespace 下，例如 namespace: default
+spec:
+  type: NodePort
+  selector:
+    # 這裡必須對應到你 Pod 的 Label
+    # 可以用 kubectl get pod guestbook-ui-7779f64766-bbl7f --show-labels 確認
+    app: guestbook-ui 
+  ports:
+    - protocol: TCP
+      port: 80         # Service 對內的 Port
+      targetPort: 80
